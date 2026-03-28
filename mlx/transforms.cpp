@@ -11,6 +11,7 @@
 
 #include "mlx/backend/cpu/eval.h"
 #include "mlx/backend/gpu/eval.h"
+#include "mlx/backend/npu/eval.h"
 #include "mlx/fence.h"
 #include "mlx/memory.h"
 #include "mlx/ops.h"
@@ -255,7 +256,9 @@ array eval_impl(std::vector<array> outputs, bool async) {
       }
     }
 
-    if (arr.primitive().device() == Device::gpu) {
+    if (arr.primitive().device() == Device::npu) {
+      npu::eval(arr);
+    } else if (arr.primitive().device() == Device::gpu) {
       gpu::eval(arr);
     } else {
       cpu::eval(arr);
@@ -268,6 +271,8 @@ array eval_impl(std::vector<array> outputs, bool async) {
       for (auto& s : open_streams) {
         if (s.device == Device::gpu) {
           gpu::finalize(s);
+        } else if (s.device == Device::npu) {
+          npu::finalize(s);
         }
       }
       scheduler::wait_for_one();
@@ -307,6 +312,8 @@ array eval_impl(std::vector<array> outputs, bool async) {
     }
     if (s.device == Device::gpu) {
       gpu::finalize(s);
+    } else if (s.device == Device::npu) {
+      npu::finalize(s);
     }
   }
 

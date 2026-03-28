@@ -2,6 +2,7 @@
 
 #include "mlx/scheduler.h"
 #include "mlx/backend/gpu/eval.h"
+#include "mlx/backend/npu/eval.h"
 
 namespace mlx::core {
 
@@ -11,6 +12,8 @@ void synchronize(Stream s) {
     std::future<void> f = p->get_future();
     scheduler::enqueue(s, [p = std::move(p)]() { p->set_value(); });
     f.wait();
+  } else if (s.device == mlx::core::Device::npu) {
+    npu::synchronize(s);
   } else {
     gpu::synchronize(s);
   }
@@ -39,6 +42,9 @@ Scheduler::~Scheduler() {
 void Scheduler::new_thread(Device::DeviceType type) {
   if (type == Device::gpu) {
     threads_.push_back(nullptr);
+  } else if (type == Device::npu) {
+    // NPU uses its own thread for async dispatch
+    threads_.push_back(std::make_unique<StreamThread>());
   } else {
     threads_.push_back(std::make_unique<StreamThread>());
   }

@@ -4,6 +4,7 @@
 
 #include "mlx/backend/cpu/device_info.h"
 #include "mlx/backend/gpu/device_info.h"
+#include "mlx/backend/npu/device_info.h"
 #include "mlx/device.h"
 
 namespace mlx::core {
@@ -22,6 +23,10 @@ void set_default_device(const Device& d) {
     throw std::invalid_argument(
         "[set_default_device] Cannot set gpu device without gpu backend.");
   }
+  if (!npu::is_available() && d == Device::npu) {
+    throw std::invalid_argument(
+        "[set_default_device] Cannot set npu device without npu backend.");
+  }
   mutable_default_device() = d;
 }
 
@@ -31,6 +36,8 @@ bool is_available(const Device& d) {
       return cpu::is_available() && (d.index < cpu::device_count());
     case Device::gpu:
       return gpu::is_available() && (d.index < gpu::device_count());
+    case Device::npu:
+      return npu::is_available() && (d.index < npu::device_count());
   }
   // appease compiler
   return false;
@@ -42,6 +49,8 @@ int device_count(Device::DeviceType type) {
       return cpu::device_count();
     case Device::gpu:
       return gpu::device_count();
+    case Device::npu:
+      return npu::device_count();
   }
   // appease compiler
   return 0;
@@ -54,6 +63,8 @@ device_info(const Device& d) {
       return cpu::device_info(d.index);
     case Device::gpu:
       return gpu::device_info(d.index);
+    case Device::npu:
+      return npu::device_info(d.index);
   }
   // appease compiler
   static std::unordered_map<std::string, std::variant<std::string, size_t>>

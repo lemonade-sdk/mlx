@@ -14,10 +14,12 @@ struct MLX_API Device {
   enum class DeviceType {
     cpu,
     gpu,
+    npu,
   };
 
   static constexpr DeviceType cpu = DeviceType::cpu;
   static constexpr DeviceType gpu = DeviceType::gpu;
+  static constexpr DeviceType npu = DeviceType::npu;
 
   Device(DeviceType type, int index = 0) : type(type), index(index) {}
 
@@ -34,6 +36,9 @@ struct MLX_API Device {
 inline bool operator==(const Device& device, Device::DeviceType type) {
   return device.type == type;
 }
+
+/** Number of device types (cpu, gpu, npu). */
+static constexpr size_t kNumDeviceTypes = 3;
 
 MLX_API const Device& default_device();
 
@@ -55,6 +60,7 @@ MLX_API int device_count(Device::DeviceType type);
  *   - uuid (string): Device UUID (CUDA only)
  *   - pci_bus_id (string): PCI bus ID (CUDA only)
  *   - compute_capability_major/minor (size_t): Compute capability (CUDA only)
+ *   - npu_type (string): NPU type e.g. "XDNA2" (NPU only)
  */
 MLX_API const
     std::unordered_map<std::string, std::variant<std::string, size_t>>&

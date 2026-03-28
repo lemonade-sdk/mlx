@@ -3,6 +3,8 @@
 #include "mlx/stream.h"
 #include "mlx/backend/cpu/device_info.h"
 #include "mlx/backend/gpu/device_info.h"
+#include "mlx/backend/npu/device_info.h"
+#include "mlx/backend/npu/eval.h"
 #include "mlx/scheduler.h"
 
 #include <array>
@@ -16,9 +18,10 @@ namespace {
 auto& default_stream_storage(Device d) {
   // Each device has its own default stream in each thread.
   static thread_local auto default_streams = []() {
-    std::array<std::vector<std::optional<Stream>>, 2> streams;
+    std::array<std::vector<std::optional<Stream>>, kNumDeviceTypes> streams;
     streams[static_cast<size_t>(Device::cpu)].resize(cpu::device_count());
     streams[static_cast<size_t>(Device::gpu)].resize(gpu::device_count());
+    streams[static_cast<size_t>(Device::npu)].resize(npu::device_count());
     return streams;
   }();
   return default_streams[static_cast<size_t>(d.type)].at(d.index);
@@ -36,6 +39,10 @@ Stream default_stream(Device d) {
     throw std::invalid_argument(
         "[default_stream] Cannot get gpu stream without gpu backend.");
   }
+  if (!npu::is_available() && d.type == Device::npu) {
+    throw std::invalid_argument(
+        "[default_stream] Cannot get npu stream without npu backend.");
+  }
   auto& s = default_stream_storage(d);
   if (!s.has_value()) {
     s = new_stream(d.type);
@@ -47,6 +54,10 @@ void set_default_stream(Stream s) {
   if (!gpu::is_available() && s.device == Device::gpu) {
     throw std::invalid_argument(
         "[set_default_stream] Cannot set gpu stream without gpu backend.");
+  }
+  if (!npu::is_available() && s.device == Device::npu) {
+    throw std::invalid_argument(
+        "[set_default_stream] Cannot set npu stream without npu backend.");
   }
   default_stream_storage(s.device) = s;
 }
@@ -62,6 +73,10 @@ Stream new_stream(Device d) {
     throw std::invalid_argument(
         "[new_stream] Cannot make gpu stream without gpu backend.");
   }
+  if (!npu::is_available() && d == Device::npu) {
+    throw std::invalid_argument(
+        "[new_stream] Cannot make npu stream without npu backend.");
+  }
   auto& [streams, mtx] = all_streams();
   std::unique_lock lock(mtx);
   int index = streams.size();
@@ -69,6 +84,8 @@ Stream new_stream(Device d) {
   scheduler::scheduler().new_thread(d.type);
   if (d == Device::gpu) {
     gpu::new_stream(s);
+  } else if (d == Device::npu) {
+    npu::new_stream(s);
   }
   return s;
 }
